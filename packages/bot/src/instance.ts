@@ -7,14 +7,19 @@ import { Chat } from "chat";
 import { createSendblueAdapter } from "chat-adapter-sendblue";
 
 export function createMiddayBot() {
+  const adapters =
+    process.env.MIDDAY_BOT_ENABLED === "true"
+      ? {
+          whatsapp: createWhatsAppAdapter(),
+          telegram: createTelegramAdapter(),
+          slack: createSlackAdapter(),
+          sendblue: createSendblueAdapter(),
+        }
+      : {};
+
   return new Chat({
     userName: "midday",
-    adapters: {
-      whatsapp: createWhatsAppAdapter(),
-      telegram: createTelegramAdapter(),
-      slack: createSlackAdapter(),
-      sendblue: createSendblueAdapter(),
-    },
+    adapters,
     state: createRedisState({ url: resolveRedisUrl() }),
     concurrency: {
       strategy: "debounce",
