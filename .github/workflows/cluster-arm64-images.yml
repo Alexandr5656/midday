@@ -1,0 +1,55 @@
+name: Build Midday ARM64 cluster images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/alexandr5656/midday
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            file: apps/api/Dockerfile
+          - name: dashboard
+            file: apps/dashboard/Dockerfile
+          - name: worker
+            file: apps/worker/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}:cluster-latest
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.MIDDAY_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${{ vars.MIDDAY_SUPABASE_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_SUPABASE_ID=${{ vars.MIDDAY_SUPABASE_ID }}
+            NEXT_PUBLIC_URL=http://192.168.1.182:30107
+            NEXT_PUBLIC_API_URL=http://192.168.1.182:30108
+            NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${{ secrets.MIDDAY_NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
+          cache-from: type=gha,scope=midday-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=midday-${{ matrix.name }}
